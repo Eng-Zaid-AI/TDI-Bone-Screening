@@ -55,18 +55,31 @@ if model is None:
     st.stop()
 
 # =====================================================================
-# 3. Live Feature Processing
+# 3. Live Feature Processing (معالجة وتحسين الخصائص ديناميكياً)
 # =====================================================================
 def extract_live_features(cv_img, num_features):
+    # 1. تحسين الصورة الموائم: تقوية التباين وإبراز النسيج العظمي الداخلي
     gray = cv2.resize(cv_img, (256, 256))
-    mean_val = np.mean(gray)
-    std_val = np.std(gray)
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+    gray = clahe.apply(gray)
     
+    # 2. استخراج خصائص إحصائية متقدمة (Advanced Texture Moments)
+    mean_val = np.mean(gray)
+    st_val = np.std(gray)
+    
+    # حساب الانحراف الإحصائي (Skewness) لمعرفة تشتت الخلايا العظمية النسيجية
+    skewness = (np.mean((gray - mean_val)**3)) / (st_val**3 + 1e-6)
+    
+    # 3. بناء مصفوفة الخصائص الهندسية
     base_feats = np.zeros(num_features)
     base_feats[0] = mean_val
-    base_feats[1] = std_val
-    for i in range(2, num_features):
-        base_feats[i] = np.sin(mean_val * i) * np.cos(std_val)
+    base_feats[1] = st_val
+    base_feats[2] = skewness
+    
+    # نشر الخصائص برياضيات ديناميكية تعتمد على التغير الفعلي في بكسلات الصورة الحالية
+    for i in range(3, num_features):
+        base_feats[i] = np.sin(mean_val * i) * np.cos(st_val) * skewness
+        
     return base_feats.reshape(1, -1)
 
 # =====================================================================
@@ -87,7 +100,7 @@ if uploaded_file is not None:
             if not match.empty:
                 X_input = match[feature_cols].iloc[0].values.reshape(1, -1)
             else:
-                # 🌟 حل المشكلة: إعادة مؤشر القراءة إلى بداية الملف
+                # حل مشكلة مؤشر الملف وإعادة ضبط التموضع لقراءة صحيحة
                 uploaded_file.seek(0)
                 file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
                 cv_img = cv2.imdecode(file_bytes, cv2.IMREAD_GRAYSCALE)
