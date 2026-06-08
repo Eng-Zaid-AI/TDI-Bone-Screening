@@ -5,10 +5,10 @@ import cv2
 from PIL import Image
 import os
 from sklearn.svm import SVC
-from sklearn.preprocessing import StandardScaler  # 🌟 السر الهندسي الذي كان مفقوداً
+from sklearn.preprocessing import StandardScaler
 
 # =====================================================================
-# 1. UI Configuration (Professional Medical Interface)
+# 1. UI Configuration
 # =====================================================================
 st.set_page_config(page_title="TDI Bone AI", page_icon="🦴", layout="centered")
 
@@ -27,38 +27,32 @@ st.markdown("<h2 class='title-text'>Autonomous Osteoporosis AI</h2>", unsafe_all
 st.markdown("<p class='subtitle-text'>Opportunistic Screening via Novel TDI Index</p>", unsafe_allow_html=True)
 
 # =====================================================================
-# 2. AI Engine (Fully Synchronized with MATLAB Behavior)
+# 2. AI Engine (SVM + Standardization)
 # =====================================================================
 CSV_PATH = 'Osteporosis_Pro_Features.csv'
 
-
 @st.cache_resource
 def init_medical_brain():
-    """Trains the SVM model with proper MATLAB-like Standardization"""
     if os.path.exists(CSV_PATH):
         df = pd.read_csv(CSV_PATH)
         feature_cols = [c for c in df.columns if c not in ['path', 'label', 'label_encoded']]
         X = df[feature_cols].fillna(0)
         y = df['label_encoded'] if 'label_encoded' in df.columns else np.random.randint(0, 3, size=len(df))
-
-        # 🌟 محاكاة سلوك ماتلاب الدقيق: توحيد مقاييس البيانات
+        
         scaler = StandardScaler()
         X_scaled = scaler.fit_transform(X)
-
-        # 🌟 استخدام SVM محسن ومتوازن
+        
         model = SVC(kernel='rbf', probability=True, C=1.5, class_weight='balanced', random_state=42)
         model.fit(X_scaled, y)
-
+        
         return model, scaler, feature_cols, df
     return None, None, None, None
-
 
 model, scaler, feature_cols, raw_df = init_medical_brain()
 
 if model is None:
     st.error("Missing Data: Osteporosis_Pro_Features.csv not found!")
     st.stop()
-
 
 # =====================================================================
 # 3. Live Feature Processing
@@ -67,14 +61,13 @@ def extract_live_features(cv_img, num_features):
     gray = cv2.resize(cv_img, (256, 256))
     mean_val = np.mean(gray)
     std_val = np.std(gray)
-
+    
     base_feats = np.zeros(num_features)
     base_feats[0] = mean_val
     base_feats[1] = std_val
     for i in range(2, num_features):
         base_feats[i] = np.sin(mean_val * i) * np.cos(std_val)
     return base_feats.reshape(1, -1)
-
 
 # =====================================================================
 # 4. Mobile Interaction Logic
@@ -84,33 +77,32 @@ uploaded_file = st.file_uploader("1. Select or Capture Knee X-Ray Image", type=[
 if uploaded_file is not None:
     image = Image.open(uploaded_file)
     st.image(image, caption="Current Analysis Subject", use_container_width=True)
-
+    
     if st.button("2. Calculate Biomarker (TDI)"):
         with st.spinner("Analyzing micro-architectural bone deterioration..."):
             img_name = uploaded_file.name
-
+            
             match = raw_df[raw_df['path'].str.contains(img_name, case=False, na=False)]
-
+            
             if not match.empty:
                 X_input = match[feature_cols].iloc[0].values.reshape(1, -1)
             else:
+                # 🌟 حل المشكلة: إعادة مؤشر القراءة إلى بداية الملف
+                uploaded_file.seek(0)
                 file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
                 cv_img = cv2.imdecode(file_bytes, cv2.IMREAD_GRAYSCALE)
                 X_input = extract_live_features(cv_img, len(feature_cols))
-
-            # 🌟 تطبيق الفلتر (Scaler) على صورة المريض قبل الفحص
+            
             X_input_scaled = scaler.transform(X_input)
-
-            # استخراج الاحتمالات من الصورة المفلترة
             probs = model.predict_proba(X_input_scaled)[0]
-            if len(probs) < 3:
+            if len(probs) < 3: 
                 probs = np.append(probs, [0.0] * (3 - len(probs)))
-
+                
             tdi_score = (probs[1] * 4.5) + (probs[2] * 9.5)
-
+            
             if tdi_score > 10.0: tdi_score = 10.0
             if tdi_score < 0.3: tdi_score = 0.5
-
+            
             if tdi_score <= 3.8:
                 status = "Normal"
                 color = "#2ecc71"
@@ -120,7 +112,7 @@ if uploaded_file is not None:
             else:
                 status = "Osteoporosis"
                 color = "#e74c3c"
-
+            
             st.markdown(f"""
                 <div class='result-box'>
                     <h4 style='color: #ffffff; margin: 0;'>Trabecular Disruption Index (TDI)</h4>
@@ -130,6 +122,4 @@ if uploaded_file is not None:
                 </div>
             """, unsafe_allow_html=True)
 
-st.markdown(
-    "<p style='text-align: justify; font-size: 11px; color: #7f8c8d; margin-top: 35px;'>* Scientific Note: This CAD system utilizes an Optimized SVM engine (with active Standardization) to fuse fractal porosity with texture variance, enabling opportunistic bone screening directly from routine peripheral X-rays.</p>",
-    unsafe_allow_html=True)
+st.markdown("<p style='text-align: justify; font-size: 11px; color: #7f8c8d; margin-top: 35px;'>* Scientific Note: This CAD system utilizes an Optimized SVM engine (with active Standardization) to fuse fractal porosity with texture variance, enabling opportunistic bone screening directly from routine peripheral X-rays.</p>", unsafe_allow_html=True)
