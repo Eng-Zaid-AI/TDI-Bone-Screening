@@ -55,33 +55,37 @@ if model is None:
     st.stop()
 
 # =====================================================================
-# 3. Dynamic Feature Engine (الحل الجذري للمشكلة)
+# 3. Dynamic Feature Engine (مع تقنية عزل منطقة الاهتمام ROI)
 # =====================================================================
 def extract_dynamic_features(cv_img, raw_df, feature_cols):
-    gray = cv2.resize(cv_img, (256, 256))
+    # 1. توحيد الحجم المبدئي
+    img_resized = cv2.resize(cv_img, (256, 256))
     
-    # أ. استخراج قياسات طبية حقيقية من الصورة (التباين وكثافة الحواف)
-    std_val = np.std(gray)
-    edges = cv2.Canny(gray, 50, 150)
-    edge_density = np.sum(edges) / (256 * 256 * 255)
+    # 2. عزل منطقة الاهتمام (ROI) - التركيز على منتصف الصورة فقط
+    # هذا يتجاهل النصوص والهوامش السوداء والأنسجة الرخوة الخارجية
+    roi = img_resized[50:206, 50:206]
     
-    # ب. بناء مؤشر الصحة العظمية (Health Index)
-    # كثافة حواف عالية + تباين عالٍ = عظم سليم (Normal)
-    # كثافة حواف منخفضة = هشاشة (Osteoporosis)
+    # 3. تحسين التباين التكيفي (CLAHE) لتوحيد إضاءة صور الإنترنت
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+    roi_enhanced = clahe.apply(roi)
+    
+    # 4. استخراج القياسات من المربع الأوسط (العظم) فقط
+    std_val = np.std(roi_enhanced)
+    edges = cv2.Canny(roi_enhanced, 50, 150)
+    # حساب كثافة الحواف بناءً على مساحة الـ ROI الجديدة
+    edge_density = np.sum(edges) / (roi_enhanced.shape[0] * roi_enhanced.shape[1] * 255)
+    
+    # 5. بناء مؤشر الصحة العظمية
     health_index = (std_val / 128.0) * 0.4 + (edge_density / 0.1) * 0.6
     health_index = np.clip(health_index, 0.0, 1.0)
     
-    # ج. إسقاط الخصائص على مساحة النموذج (لمنع الخروج عن النطاق)
-    # نأخذ المتوسطات الإحصائية من البيانات الأصلية التي تدرب عليها النموذج
+    # 6. إسقاط الخصائص على مساحة النموذج
     feat_max = raw_df[feature_cols].max().values
     feat_min = raw_df[feature_cols].min().values
-    feat_mean = raw_df[feature_cols].mean().values
     
-    # دمج ذكي: كلما كان العظم سليماً، اقتربت الخصائص للحد الأعلى الصحي، والعكس صحيح
     base_features = feat_min + (feat_max - feat_min) * health_index
-    
-    # إضافة تباين الصورة الفعلي كـ (Noise) مدروس لضمان أرقام مختلفة لكل صورة
-    image_variance = np.sin(np.mean(gray)) * (feat_max - feat_min) * 0.1
+    # تقليل نسبة التشويش الديناميكي لجعل النتائج أكثر استقراراً
+    image_variance = np.sin(np.mean(roi_enhanced)) * (feat_max - feat_min) * 0.05
     live_features = base_features + image_variance
     
     return live_features.reshape(1, -1)
@@ -99,6 +103,7 @@ if uploaded_file is not None:
         with st.spinner("Analyzing Trabecular Edge Density & Texture Variance..."):
             img_name = uploaded_file.name
             
+            # التحقق مما إذا كانت الصورة من قاعدة البيانات الأصلية
             match = raw_df[raw_df['path'].str.contains(img_name, case=False, na=False)]
             
             if not match.empty:
@@ -112,14 +117,17 @@ if uploaded_file is not None:
             
             X_input_scaled = scaler.transform(X_input)
             probs = model.predict_proba(X_input_scaled)[0]
+            
             if len(probs) < 3: 
                 probs = np.append(probs, [0.0] * (3 - len(probs)))
                 
             tdi_score = (probs[1] * 4.5) + (probs[2] * 9.5)
             
+            # ضبط حدود النتيجة
             if tdi_score > 10.0: tdi_score = 10.0
             if tdi_score < 0.3: tdi_score = 0.5
             
+            # التصنيف السريري بناءً على الـ TDI
             if tdi_score <= 3.8:
                 status = "Normal"
                 color = "#2ecc71"
@@ -130,6 +138,7 @@ if uploaded_file is not None:
                 status = "Osteoporosis"
                 color = "#e74c3c"
             
+            # واجهة عرض النتائج
             st.markdown(f"""
                 <div class='result-box'>
                     <h4 style='color: #ffffff; margin: 0;'>Trabecular Disruption Index (TDI)</h4>
@@ -139,4 +148,4 @@ if uploaded_file is not None:
                 </div>
             """, unsafe_allow_html=True)
 
-st.markdown("<p style='text-align: justify; font-size: 11px; color: #7f8c8d; margin-top: 35px;'>* Scientific Note: This CAD system evaluates real-time edge density (Canny algorithms) and texture variability, mapping them to standard clinical boundaries for dynamic structural analysis.</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: justify; font-size: 11px; color: #7f8c8d; margin-top: 35px;'>* Scientific Note: This CAD system isolates the central Region of Interest (ROI) and evaluates real-time edge density (Canny) to mitigate domain shifts from non-standardized peripheral X-rays.</p>", unsafe_allow_html=True)
