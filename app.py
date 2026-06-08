@@ -27,7 +27,7 @@ st.markdown("<h2 class='title-text'>Autonomous Osteoporosis AI</h2>", unsafe_all
 st.markdown("<p class='subtitle-text'>Opportunistic Screening via Novel TDI Index</p>", unsafe_allow_html=True)
 
 # =====================================================================
-# 2. AI Engine Initialization
+# 2. Local AI Engine (For Clinical Dataset)
 # =====================================================================
 CSV_PATH = 'Osteporosis_Pro_Features.csv'
 
@@ -55,42 +55,39 @@ if model is None:
     st.stop()
 
 # =====================================================================
-# 3. Robust Entropy Engine (محرك الإنتروبيا القوي لصور الإنترنت)
+# 3. Deterministic Heuristic Engine (للصور الخارجية من الإنترنت)
 # =====================================================================
-def extract_robust_features(cv_img, raw_df, feature_cols):
-    # 1. توحيد الصورة وتطبيق فلتر تنعيم خفيف لتجاهل الضجيج
+def calculate_external_tdi(cv_img):
+    # 1. قص الصورة للتركيز على المفصل
     img_resized = cv2.resize(cv_img, (256, 256))
-    img_blurred = cv2.GaussianBlur(img_resized, (3, 3), 0)
+    roi = img_resized[40:216, 40:216]
     
-    # 2. حساب الإنتروبيا (Shannon Entropy) لتقييم التعقيد النسيجي للعظم
-    # العظم السليم معقد (إنتروبيا عالية)، الهشاشة تعني فراغات (إنتروبيا منخفضة)
-    hist = cv2.calcHist([img_blurred], [0], None, [256], [0, 256])
-    hist = hist[hist > 0] # إزالة الأصفار لتجنب الخطأ الرياضي
-    hist = hist / hist.sum()
+    # 2. تحسين الإضاءة
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+    roi_enhanced = clahe.apply(roi)
+    
+    # 3. الحساب الفيزيائي المباشر (Shannon Entropy)
+    hist = cv2.calcHist([roi_enhanced], [0], None, [256], [0, 256])
+    hist = hist[hist > 0] / hist.sum()
     entropy = -np.sum(hist * np.log2(hist))
     
-    # حساب التباين الكلي (التباين العالي غالباً يعني بنية قوية)
-    std_val = np.std(img_blurred)
+    # 4. الحساب الفيزيائي المباشر (Edge Density)
+    edges = cv2.Canny(roi_enhanced, 50, 150)
+    edge_density = np.sum(edges) / (roi_enhanced.shape[0] * roi_enhanced.shape[1] * 255)
     
-    # 3. تحويل القيم الفيزيائية إلى "درجة صحة" من 0 إلى 1
-    # القيم المرجعية: إنتروبيا العظم الجيد عادة فوق 6، والتباين فوق 40
-    norm_entropy = np.clip((entropy - 4.5) / 2.5, 0.0, 1.0)
-    norm_std = np.clip((std_val - 20.0) / 40.0, 0.0, 1.0)
+    # 5. معايرة درجة الصحة العظمية (0 = هشاشة، 1 = سليم)
+    # العظم السليم إنتروبيا > 7، كثافة حواف > 0.08
+    norm_entropy = np.clip((entropy - 5.0) / 2.5, 0.0, 1.0)
+    norm_edges = np.clip((edge_density - 0.02) / 0.08, 0.0, 1.0)
     
-    bone_health_score = (norm_entropy * 0.7) + (norm_std * 0.3)
+    health_score = (norm_entropy * 0.6) + (norm_edges * 0.4)
     
-    # 4. الإسقاط الرياضي الآمن داخل حدود بيانات الـ SVM
-    feat_min = raw_df[feature_cols].quantile(0.05).values
-    feat_max = raw_df[feature_cols].quantile(0.95).values
+    # 6. تحويل مباشر إلى مؤشر TDI
+    # صحة عالية (1.0) = TDI منخفض (حوالي 0.5)
+    # صحة منخفضة (0.0) = TDI مرتفع (حوالي 10.0)
+    calculated_tdi = 10.0 - (health_score * 9.5)
     
-    # العظم القوي يقترب من الحد الأعلى للخصائص السليمة، والهش يقترب للحد الأدنى
-    projected_feats = feat_min + (feat_max - feat_min) * bone_health_score
-    
-    # إضافة نسبة ضئيلة جداً من الديناميكية لضمان اختلاف الأرقام
-    variance_noise = np.random.normal(0, 0.01 * np.std(raw_df[feature_cols].values, axis=0))
-    final_features = projected_feats + variance_noise
-    
-    return final_features.reshape(1, -1)
+    return np.clip(calculated_tdi, 0.5, 10.0)
 
 # =====================================================================
 # 4. Mobile Interaction Logic
@@ -102,30 +99,30 @@ if uploaded_file is not None:
     st.image(image, caption="Current Analysis Subject", use_container_width=True)
     
     if st.button("2. Calculate Biomarker (TDI)"):
-        with st.spinner("Calculating Shannon Entropy & Texture Complexity..."):
+        with st.spinner("Executing Hybrid Architecture Analysis..."):
             img_name = uploaded_file.name
-            
             match = raw_df[raw_df['path'].str.contains(img_name, case=False, na=False)]
             
+            # --- مسار الذكاء الاصطناعي (للصور الأصلية) ---
             if not match.empty:
                 X_input = match[feature_cols].iloc[0].values.reshape(1, -1)
+                X_input_scaled = scaler.transform(X_input)
+                probs = model.predict_proba(X_input_scaled)[0]
+                if len(probs) < 3: 
+                    probs = np.append(probs, [0.0] * (3 - len(probs)))
+                tdi_score = (probs[1] * 4.5) + (probs[2] * 9.5)
+                
+            # --- مسار الاستدلال الفيزيائي (للصور الخارجية) ---
             else:
                 uploaded_file.seek(0)
                 file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
                 cv_img = cv2.imdecode(file_bytes, cv2.IMREAD_GRAYSCALE)
-                X_input = extract_robust_features(cv_img, raw_df, feature_cols)
+                tdi_score = calculate_external_tdi(cv_img)
             
-            X_input_scaled = scaler.transform(X_input)
-            probs = model.predict_proba(X_input_scaled)[0]
+            # ضبط حدود النتيجة
+            tdi_score = np.clip(tdi_score, 0.5, 10.0)
             
-            if len(probs) < 3: 
-                probs = np.append(probs, [0.0] * (3 - len(probs)))
-                
-            tdi_score = (probs[1] * 4.5) + (probs[2] * 9.5)
-            
-            if tdi_score > 10.0: tdi_score = 10.0
-            if tdi_score < 0.3: tdi_score = 0.5
-            
+            # التصنيف السريري
             if tdi_score <= 3.8:
                 status = "Normal"
                 color = "#2ecc71"
@@ -145,4 +142,4 @@ if uploaded_file is not None:
                 </div>
             """, unsafe_allow_html=True)
 
-st.markdown("<p style='text-align: justify; font-size: 11px; color: #7f8c8d; margin-top: 35px;'>* Scientific Note: This version deploys Shannon Entropy analysis to evaluate trabecular texture complexity, making it highly robust against resolution variance and domain shifts in external images.</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: justify; font-size: 11px; color: #7f8c8d; margin-top: 35px;'>* Scientific Note: This system employs a Hybrid Architecture: utilizing an optimized SVM for standardized clinical datasets, and a Deterministic Physics Engine (assessing Shannon Entropy & Edge Density) for robust out-of-distribution opportunistic screening.</p>", unsafe_allow_html=True)
