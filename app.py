@@ -27,6 +27,25 @@ st.markdown("<h2 class='title-text'>Autonomous Osteoporosis AI</h2>", unsafe_all
 st.markdown("<p class='subtitle-text'>Opportunistic Screening via Novel TDI Index</p>", unsafe_allow_html=True)
 
 # =====================================================================
+# 1.5. Help / Summary Section
+# =====================================================================
+with st.expander("ℹ️ Help / المساعدة (Project Summary)"):
+    # الجزء الإنجليزي
+    st.markdown("""
+    **⚙️ English Summary:**
+    This Clinical Decision Support System is designed for the opportunistic screening of bone micro-architecture deterioration using routine knee X-rays. It employs a **Hybrid Architecture**: an optimized Support Vector Machine (SVM) engine for standardized clinical datasets, and a Deterministic Physics Engine (evaluating Shannon Entropy & Edge Density) for external out-of-distribution images. The system calculates the Trabecular Disruption Index (TDI) to classify bone health into Normal, Osteopenia, or Osteoporosis, providing a crucial early-warning signal without the immediate need for DEXA scans.
+    """)
+
+    # الجزء العربي (مُجبر من اليمين لليسار وبشكل فقرة متصلة)
+    st.markdown("""
+    <div dir="rtl" style="text-align: right; font-family: 'Arial', sans-serif; line-height: 1.8;">
+    <hr>
+    <b>🩺 الملخص التقني (عربي):</b><br>
+    تم تصميم نظام دعم القرار السريري هذا لإجراء فحص مبكر للتعرف على تدهور البنية الدقيقة للعظام باستخدام صور الأشعة السينية الروتينية للركبة. يعتمد النظام على <b>هيكلية هجينة (Hybrid Architecture)</b> تدمج بين خوارزمية ذكاء اصطناعي (SVM) للتعامل مع البيانات السريرية القياسية، ومحرك تحليل فيزيائي مباشر (لتقييم الإنتروبيا وكثافة الحواف) للتعامل مع الصور الخارجية. يقوم النظام بحساب "مؤشر التدهور التربيقي" (TDI) لتصنيف حالة العظم إلى سليم، أو بداية هشاشة، أو هشاشة عظام، مما يوفر إنذاراً مبكراً ومهماً للطبيب بوجود خطر دون الحاجة الفورية لعمليات مسح كثافة العظام المتقدمة (DEXA).
+    </div>
+    """, unsafe_allow_html=True)
+
+# =====================================================================
 # 2. Local AI Engine (For Clinical Dataset)
 # =====================================================================
 CSV_PATH = 'Osteporosis_Pro_Features.csv'
