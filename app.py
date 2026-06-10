@@ -32,7 +32,7 @@ st.markdown("<p class='subtitle-text'>Opportunistic Screening via Novel TDI Inde
 with st.expander("ℹ️ Help / المساعدة (Project Summary)"):
     # الجزء الإنجليزي
     st.markdown("""
-    **⚙️  Summary:**
+    **⚙️ English Summary:**
     This Clinical Decision Support System is designed for the opportunistic screening of bone micro-architecture deterioration using routine knee X-rays. It employs a **Hybrid Architecture**: an optimized Support Vector Machine (SVM) engine for standardized clinical datasets, and a Deterministic Physics Engine (evaluating Shannon Entropy & Edge Density) for external out-of-distribution images. The system calculates the Trabecular Disruption Index (TDI) to classify bone health into Normal, Osteopenia, or Osteoporosis, providing a crucial early-warning signal without the immediate need for DEXA scans.
     """)
 
@@ -40,10 +40,22 @@ with st.expander("ℹ️ Help / المساعدة (Project Summary)"):
     st.markdown("""
     <div dir="rtl" style="text-align: right; font-family: 'Arial', sans-serif; line-height: 1.8;">
     <hr>
-    <b>🩺 الملخص :</b><br>
+    <b>🩺 الملخص التقني (عربي):</b><br>
     تم تصميم نظام دعم القرار السريري هذا لإجراء فحص مبكر للتعرف على تدهور البنية الدقيقة للعظام باستخدام صور الأشعة السينية الروتينية للركبة. يعتمد النظام على <b>هيكلية هجينة (Hybrid Architecture)</b> تدمج بين خوارزمية ذكاء اصطناعي (SVM) للتعامل مع البيانات السريرية القياسية، ومحرك تحليل فيزيائي مباشر (لتقييم الإنتروبيا وكثافة الحواف) للتعامل مع الصور الخارجية. يقوم النظام بحساب "مؤشر التدهور التربيقي" (TDI) لتصنيف حالة العظم إلى سليم، أو بداية هشاشة، أو هشاشة عظام، مما يوفر إنذاراً مبكراً ومهماً للطبيب بوجود خطر دون الحاجة الفورية لعمليات مسح كثافة العظام المتقدمة (DEXA).
     </div>
     """, unsafe_allow_html=True)
+
+# =====================================================================
+# 1.6. Project Demo Video
+# =====================================================================
+with st.expander("🎥 Project Demo Video / فيديو توضيحي للمشروع"):
+    try:
+        # قراءة وعرض ملف الفيديو (تم تعديل الاسم ليطابق الملف المرفوع بنقطتين)
+        video_file = open('project_video.mp4', 'rb')
+        video_bytes = video_file.read()
+        st.video(video_bytes)
+    except FileNotFoundError:
+        st.warning("⚠️ Please upload the video file to the repository. / يرجى رفع ملف الفيديو إلى مستودع GitHub.")
 
 # =====================================================================
 # 2. Local AI Engine (For Clinical Dataset)
